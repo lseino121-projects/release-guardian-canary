@@ -1,0 +1,5 @@
+mode: enforce
+policy_profile: balanced
+severity_threshold: high
+allow_conditional: false
+low_confidence_mode: normal

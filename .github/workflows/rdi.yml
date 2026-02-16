@@ -1,0 +1,44 @@
+name: Canary - Release Guardian
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Override mode for manual run"
+        required: true
+        default: "enforce"
+        type: choice
+        options:
+          - report-only
+          - enforce
+
+permissions:
+  contents: read
+  pull-requests: write
+  statuses: write
+
+concurrency:
+  group: rdi-canary-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  rdi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Release Guardian
+        uses: lseino121-projects/release-guardian@v1.2.5
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          mode: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'enforce' }}
+          severity_threshold: high
+          allow_conditional: false
+          config_path: .release-guardian.yml
