@@ -34,11 +34,22 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
-      - name: Release Guardian
+      - name: Release Guardian (stable tag)
+        if: ${{ github.event_name != 'pull_request' || !startsWith(github.head_ref, 'smoke/') }}
         uses: lseino121-projects/release-guardian/action@v1.2.6
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           mode: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'enforce' }}
+          severity_threshold: high
+          allow_conditional: false
+          config_path: .release-guardian.yml
+
+      - name: Release Guardian (develop for smoke branches)
+        if: ${{ github.event_name == 'pull_request' && startsWith(github.head_ref, 'smoke/') }}
+        uses: lseino121-projects/release-guardian/action@develop
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          mode: enforce
           severity_threshold: high
           allow_conditional: false
           config_path: .release-guardian.yml
