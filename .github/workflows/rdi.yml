@@ -35,7 +35,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Release Guardian
-        uses: lseino121-projects/release-guardian/action@v1.2.5
+        uses: lseino121-projects/release-guardian/action@develop
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           mode: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'enforce' }}
