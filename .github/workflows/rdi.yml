@@ -36,7 +36,7 @@ jobs:
 
       - name: Release Guardian (stable tag)
         if: ${{ github.event_name != 'pull_request' || !startsWith(github.head_ref, 'smoke/') }}
-        uses: lseino121-projects/release-guardian/action@v1.2.6
+        uses: lseino121-projects/release-guardian/action@v1.3.0-rc1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           mode: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'enforce' }}
