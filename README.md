@@ -47,3 +47,7 @@ Include:
 - top comment snippet
 - commit SHA
 - any scanner/runtime failure context
+
+## Smoke: Go Scenario
+
+This branch is a docs-only change for expected Go validation.
