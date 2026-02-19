@@ -1,3 +1,3 @@
 import subprocess
 
-subprocess.Popen("echo canary-risk | sh", shell=True)
+subprocess.run(["echo", "canary-safe"], check=True, shell=False)
