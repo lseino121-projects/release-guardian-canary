@@ -1,0 +1,6 @@
+enabled: true
+id: OVR-CANARY-001
+owner: secops@acme.com
+justification: canary validation of override workflow
+expires_at: 2099-01-01T00:00:00Z
+mode: conditional
