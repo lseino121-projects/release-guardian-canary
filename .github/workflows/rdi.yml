@@ -41,11 +41,13 @@ jobs:
           python-version: "3.13"
 
       - name: Build/Test Harness
+        working-directory: .rg-src
         run: |
           set -euo pipefail
-          go test ./.rg-src/...
+          go test ./...
 
       - name: Generate Evidence Bundle (safe mode)
+        working-directory: .rg-src
         env:
           RG_WORKER: "1"
           RG_WORKER_DRY_RUN: "1"
@@ -53,7 +55,7 @@ jobs:
           RG_ACTUATE_DRY_RUN: "1"
         run: |
           set -euo pipefail
-          go run ./.rg-src/cmd/rg run --target "$GITHUB_WORKSPACE" --out "$GITHUB_WORKSPACE/out"
+          go run ./cmd/rg run --target "$GITHUB_WORKSPACE" --out "$GITHUB_WORKSPACE/out"
 
       - name: Verify Evidence Outputs
         run: |
