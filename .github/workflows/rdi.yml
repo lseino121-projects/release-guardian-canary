@@ -1,32 +1,21 @@
-name: Canary - Release Guardian
+name: Canary - Release Guardian v2
 
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
-    inputs:
-      mode:
-        description: "Override mode for manual run"
-        required: true
-        default: "enforce"
-        type: choice
-        options:
-          - report-only
-          - enforce
 
 permissions:
   contents: read
-  pull-requests: write
-  statuses: write
 
 concurrency:
-  group: rdi-canary-${{ github.event.pull_request.number || github.run_id }}
+  group: rg-v2-canary-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
 
 jobs:
-  rdi:
+  evidence:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v4
@@ -34,22 +23,61 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
-      - name: Release Guardian (stable tag)
-        if: ${{ github.event_name != 'pull_request' || !startsWith(github.head_ref, 'smoke/') }}
-        uses: lseino121-projects/release-guardian/action@v1.2.9
+      - name: Checkout release-guardian (develop)
+        uses: actions/checkout@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          mode: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'enforce' }}
-          severity_threshold: high
-          allow_conditional: false
-          config_path: .release-guardian.yml
+          repository: lseino121-projects/release-guardian
+          ref: develop
+          path: .rg-src
 
-      - name: Release Guardian (develop for smoke branches)
-        if: ${{ github.event_name == 'pull_request' && startsWith(github.head_ref, 'smoke/') }}
-        uses: lseino121-projects/release-guardian/action@v1.2.9
+      - name: Set up Go
+        uses: actions/setup-go@v5
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          mode: enforce
-          severity_threshold: high
-          allow_conditional: false
-          config_path: .release-guardian.yml
+          go-version-file: .rg-src/go.mod
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Build/Test Harness
+        run: |
+          set -euo pipefail
+          go test ./.rg-src/...
+
+      - name: Generate Evidence Bundle (safe mode)
+        env:
+          RG_WORKER: "1"
+          RG_WORKER_DRY_RUN: "1"
+          RG_ACTUATE: "1"
+          RG_ACTUATE_DRY_RUN: "1"
+        run: |
+          set -euo pipefail
+          go run ./.rg-src/cmd/rg run --target "$GITHUB_WORKSPACE" --out "$GITHUB_WORKSPACE/out"
+
+      - name: Verify Evidence Outputs
+        run: |
+          set -euo pipefail
+          test -f out/engine-result.json
+          test -f out/evidence-bundle.json
+          test -f out/raw/sbom.syft.json
+          test -f out/raw/vulns.grype.json
+          test -f out/remediation/before.json
+          test -f out/remediation/after.json
+          test -f out/remediation/result.json
+          test -f out/remediation/worker-result.json
+          test -f out/remediation/pr-result.json
+          jq -e '.schema_version == "engine-result/v1"' out/engine-result.json > /dev/null
+          jq -e '.schema_version == "evidence-bundle/v1"' out/evidence-bundle.json > /dev/null
+          jq -e '.worker.status == "proposed" or .worker.status == "skipped"' out/evidence-bundle.json > /dev/null
+          jq -e '.actuation.status == "skipped"' out/evidence-bundle.json > /dev/null
+          jq -e '.integrity.worker_result_sha256 | length == 64' out/evidence-bundle.json > /dev/null
+          jq -e '.integrity.actuation_result_sha256 | length == 64' out/evidence-bundle.json > /dev/null
+          jq -e '.integrity.bundle_sha256 | length == 64' out/evidence-bundle.json > /dev/null
+
+      - name: Upload Evidence Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-guardian-v2-canary-${{ github.run_id }}
+          path: out/
+          if-no-files-found: error
